@@ -1,4 +1,3 @@
----
 ## Applications
 - **Terraform** — AWS infrastructure provisioning (VPC, EKS, IAM)
 - **Flux v2** — Continuous delivery to Kubernetes via GitOps
@@ -37,3 +36,4 @@ make lint        # Run linter checks
 make build       # Build Docker image
 make push        # Push Docker image
 make deploy      # Update image in kustomization.yaml
+```
