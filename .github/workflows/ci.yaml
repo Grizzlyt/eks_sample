@@ -1,0 +1,76 @@
+---
+name: CI/CD Pipeline
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  checks:
+    name: Lint, Test, Scan (PR)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install tools (kustomize, helm, kubeval)
+        run: |
+          curl -sLo kustomize.tar.gz https://github.com/kubernetes-sigs/kustomize/releases/latest/download/kustomize_v5.4.1_linux_amd64.tar.gz
+          tar -xzf kustomize.tar.gz
+          sudo mv kustomize /usr/local/bin/kustomize
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          wget https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
+          tar -xzf kubeval-linux-amd64.tar.gz
+          chmod +x kubeval && sudo mv kubeval /usr/local/bin/
+
+      - name: Lint Dockerfile
+        run: docker run --rm -i hadolint/hadolint < Dockerfile
+
+      - name: Lint Helm chart
+        run: helm lint flux/echo_app/release/1.0.0
+
+      - name: YAML lint
+        uses: ibiqlik/action-yamllint@v3
+
+      - name: Validate Kubernetes Manifests
+        run: kubeval --strict flux/echo_app/release/1.0.0/templates/*.yaml
+
+      - name: Docker scan
+        run: docker scan --accept-license --dependency-tree ealen/echo-server
+
+  release:
+    name: Build & Deploy (main)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install kustomize
+        run: |
+          curl -sLo kustomize.tar.gz https://github.com/kubernetes-sigs/kustomize/releases/latest/download/kustomize_v5.4.1_linux_amd64.tar.gz
+          tar -xzf kustomize.tar.gz
+          chmod +x kustomize
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Log in to Docker
+        run: echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+      - name: Build and Push Docker Image
+        working-directory: flux/echo_app
+        run: |
+          docker build -t your-registry/echo-server:latest .
+          docker push your-registry/echo-server:latest
+
+      - name: Update kustomization.yaml with new image
+        working-directory: flux
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          kustomize edit set image echo-server=your-registry/echo-server:latest
+          git add kustomization.yaml
+          git commit -m "Auto deploy: update image"
+          git push

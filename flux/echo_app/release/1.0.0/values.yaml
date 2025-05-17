@@ -1,0 +1,24 @@
+replicaCount: 2
+image:
+  repository: ealen/echo-server
+  tag: latest
+  pullPolicy: IfNotPresent
+
+nodeSelector:
+  role: app
+
+tolerations:
+  - key: "dedicated"
+    operator: "Equal"
+    value: "app"
+    effect: "NoSchedule"
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+service:
+  type: ClusterIP
+  port: 80
