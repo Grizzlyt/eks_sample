@@ -9,11 +9,11 @@
 
 ## CI/CD
 
-- 🔄 Automatic build & push of Docker image on merge to `master`
-- ✅ Lint (Docker, YAML, Helm), test, scan on Pull Requests
-- 🔁 Image update via `kustomize edit set image`
-- 🔐 Static analysis via Docker scan
-- 📤 Auto-deployment via Flux
+- Automatic build & push of Docker image on merge to `master`
+- Lint (Docker, YAML, Helm), test, scan on Pull Requests
+- Image update via `kustomize edit set image`
+- Static analysis via Docker scan
+- Auto-deployment via Flux
 
 ---
 
@@ -37,3 +37,15 @@ make build       # Build Docker image
 make push        # Push Docker image
 make deploy      # Update image in kustomization.yaml
 ```
+
+## Improvements
+1. Move applications to separate repo
+2. Add monitoring and observability
+3. Auto-release for the applications
+3. Improve terraform code with variables, make it more flexible
+4. Install additional plugins for AWS Load balances, secres.
+5. Adjust scaling mechanic for nodes
+6. Certificate management for exposed applications
+7. Add service-mesh with istio
+8. Authentication and cluster access - define roles, serviceaccounts, trustrelationships
+9. Add terraform code checks - checkov, TFSec, TFLint

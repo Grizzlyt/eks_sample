@@ -1,0 +1,56 @@
+name: Deploy Terrafomr
+
+# Trigger on push to master (only can happen through a pull request merge).
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+  workflow_dispatch:
+
+env:
+  AWS_REGION: "eu-west-1"
+  TERRAFORM_VERSION: "1.5.7"
+
+concurrency:
+  group: terraformApply
+
+permissions:
+  id-token: write   # This is required for requesting the JWT
+  contents: read    # This is required for actions/checkout
+jobs:
+  Deloy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git clone the repository
+        uses: actions/checkout@v4
+
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: <some_absctract_role>
+          role-session-name: terraformPR
+          aws-region: ${{ env.AWS_REGION }}
+          role-duration-seconds: 1200
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Check access to AWS Cloud
+        run: |
+          aws sts get-caller-identity
+
+      - name: Terrafrom Initialize Terraform
+        run: terraform init
+        working-directory: terraform
+
+      - name: Terrafrom Plan
+        run: terraform plan -out=plan.out
+        working-directory: terraform
+
+      - name: Terrafrom Apply
+        run: terraform apply plan.out
+        working-directory: terraform

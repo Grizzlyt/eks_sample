@@ -1,0 +1,69 @@
+name: AWS PullReuqest check
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'terraform/**'
+  
+env:
+  AWS_REGION: "us-east-1"
+  TERRAFORM_VERSION: "1.5.7"
+
+concurrency:
+  group: terraformApply
+
+permissions:
+  id-token: write   # This is required for requesting the JWT
+  contents: read    # This is required for actions/checkout
+jobs:
+  PRCheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git clone the repository
+        uses: actions/checkout@v4
+
+      - name: Get all app, terraform files that have changed
+        id: changed-files-yaml
+        uses: tj-actions/changed-files@v44
+        with:
+          files_yaml: |
+            terraform:
+              - '**.tf'
+
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: <some_absctract_role>
+          role-session-name: terraformPR
+          aws-region: ${{ env.AWS_REGION }}
+          role-duration-seconds: 1200
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Check access to AWS Cloud
+        if: steps.changed-files-yaml.outputs.terraform_any_changed == 'true'
+        run: |
+          aws sts get-caller-identity
+
+      - name: Terrafrom Initialize Terraform
+        if: steps.changed-files-yaml.outputs.terraform_any_changed == 'true'
+        run: terraform init
+        working-directory: terraform
+
+      - name: Terrafrom Format Check
+        if: steps.changed-files-yaml.outputs.terraform_any_changed == 'true'
+        run: terraform fmt -check -diff
+        working-directory: terraform
+
+      - name: Terrafrom Validate
+        if: steps.changed-files-yaml.outputs.terraform_any_changed == 'true'
+        run: terraform validate
+        working-directory: terraform
+
+      - name: Terrafrom Plan
+        if: steps.changed-files-yaml.outputs.terraform_any_changed == 'true'
+        run: terraform plan
+        working-directory: terraform
